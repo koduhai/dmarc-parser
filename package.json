@@ -1,0 +1,64 @@
+{
+  "name": "@koduhai/dmarc-parser",
+  "version": "0.1.0",
+  "description": "Parse DMARC aggregate (RUA) reports — XML, .gz/.zip, or raw MIME email — into typed JSON. Zero-config CLI + tiny library.",
+  "keywords": [
+    "dmarc",
+    "dmarc-report",
+    "dmarc-parser",
+    "rua",
+    "aggregate-report",
+    "email",
+    "deliverability",
+    "spf",
+    "dkim",
+    "email-authentication"
+  ],
+  "license": "MIT",
+  "author": "Koduhai",
+  "homepage": "https://github.com/koduhai/dmarc-parser#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/koduhai/dmarc-parser.git"
+  },
+  "bugs": {
+    "url": "https://github.com/koduhai/dmarc-parser/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "dmarc-parser": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^4.5.0",
+    "fflate": "^0.8.2",
+    "mailparser": "^3.7.1"
+  },
+  "devDependencies": {
+    "@types/mailparser": "^3.4.4",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
