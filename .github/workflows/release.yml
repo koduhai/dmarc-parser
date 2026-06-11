@@ -29,6 +29,8 @@ jobs:
         run: npm install -g npm@latest
 
       - run: npm ci
+        env:
+          HUSKY: 0 # CI doesn't commit; skip git-hook install
 
       - name: Verify the tag matches package.json
         run: |

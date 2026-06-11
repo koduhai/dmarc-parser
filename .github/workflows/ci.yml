@@ -32,6 +32,8 @@ jobs:
           cache: npm
 
       - run: npm ci
+        env:
+          HUSKY: 0 # CI doesn't commit; skip git-hook install
 
       - name: Lint
         run: npm run lint
