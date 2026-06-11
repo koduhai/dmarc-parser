@@ -7,6 +7,7 @@ export default defineConfig({
       provider: 'v8',
       include: ['src/**/*.ts'],
       exclude: ['src/**/*.test.ts', 'src/__fixtures__/**'],
+      reporter: ['text', 'lcov', 'json-summary'],
       // Thresholds sit just under current coverage so an accidental regression fails CI.
       thresholds: {
         statements: 90,
