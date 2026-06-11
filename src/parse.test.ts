@@ -157,6 +157,18 @@ describe('parseDmarcXml', () => {
     expect(r.meta.policyPct).toBe(0);
     expect(r.records[0].count).toBe(0);
   });
+
+  it('truncates a fractional count to an integer and clamps pct to 100', () => {
+    const xml = `<?xml version="1.0"?><feedback>
+      <report_metadata><org_name>x.com</org_name><report_id>RID-10</report_id>
+        <date_range><begin>1717200000</begin><end>1717286400</end></date_range></report_metadata>
+      <policy_published><domain>d.com</domain><p>none</p><pct>150</pct></policy_published>
+      <record><row><source_ip>192.0.2.9</source_ip><count>3.9</count>
+        <policy_evaluated><dkim>pass</dkim></policy_evaluated></row></record></feedback>`;
+    const r = parseDmarcXml(xml);
+    expect(r.meta.policyPct).toBe(100);
+    expect(r.records[0].count).toBe(3);
+  });
 });
 
 describe('summarize / recordPassesDmarc', () => {
