@@ -73,6 +73,7 @@ import {
   extractReportXml,  // (rawMime) => Promise<string>            — pull xml out of a MIME email
   parseReportEmail,  // (rawMime) => Promise<DmarcReport>       — extract + parse in one call
   summarize,         // (report) => DmarcSummary                — totals, pass rate, per-IP rollup
+  aggregate,         // (reports[]) => DmarcAggregate           — combined rollup across many reports
   recordPassesDmarc, // (record) => boolean                     — true if DKIM or SPF is aligned-pass
   DmarcParseError,
 } from '@koduhai/dmarc-parser';
@@ -90,6 +91,13 @@ for (const r of report.records) {
 // Or skip the manual loop and get totals + a per-source-IP breakdown:
 const { total, passing, passRate, bySourceIp } = summarize(report);
 console.log(`${passRate}% pass (${passing}/${total})`);
+
+// Roll up many reports (e.g. a mailbox or S3 prefix) into one view over a date window:
+const reports = await Promise.all(emls.map((eml) => parseReportEmail(eml)));
+const roll = aggregate(reports);
+console.log(`${roll.reportCount} reports, ${roll.passRate}% pass`);
+console.log(roll.dateBegin, '→', roll.dateEnd, roll.domains);
+for (const ip of roll.bySourceIp) console.log(ip.sourceIp, ip.count, `${ip.passRate}%`);
 ```
 
 ### Types
@@ -136,6 +144,13 @@ interface DmarcSummary {
   failing: number;
   passRate: number;            // 0-100, one decimal
   bySourceIp: { sourceIp: string; count: number; passing: number; passRate: number }[];
+}
+
+interface DmarcAggregate extends DmarcSummary {  // returned by aggregate(reports)
+  reportCount: number;
+  dateBegin: Date | null;      // earliest window start across reports
+  dateEnd: Date | null;        // latest window end across reports
+  domains: string[];           // distinct policy domains, sorted
 }
 ```
 

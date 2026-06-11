@@ -4,6 +4,7 @@ export {
   parseReportEmail,
   decompressReport,
   summarize,
+  aggregate,
   recordPassesDmarc,
   DmarcParseError,
 } from './parse.js';
@@ -16,4 +17,5 @@ export type {
   DmarcReason,
   DmarcSummary,
   DmarcSourceSummary,
+  DmarcAggregate,
 } from './parse.js';

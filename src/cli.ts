@@ -6,6 +6,7 @@ import {
   decompressReport,
   extractReportXml,
   summarize,
+  aggregate,
   DmarcParseError,
   type DmarcReport,
 } from './parse.js';
@@ -168,18 +169,6 @@ function printCsv(loaded: { file: string; report: DmarcReport }[]): void {
   console.log(lines.join('\n'));
 }
 
-// Combined pass rate across every input report (totals summed, then divided once).
-function combinedPassRate(reports: DmarcReport[]): { total: number; passing: number; passRate: number } {
-  let total = 0;
-  let passing = 0;
-  for (const report of reports) {
-    const s = summarize(report);
-    total += s.total;
-    passing += s.passing;
-  }
-  return { total, passing, passRate: total === 0 ? 0 : Math.round((passing / total) * 1000) / 10 };
-}
-
 interface CliOptions {
   format: 'summary' | 'json' | 'ndjson' | 'csv';
   failUnder: number | null;
@@ -270,7 +259,7 @@ export async function main(argv: string[]): Promise<number> {
   }
 
   if (opts.failUnder != null) {
-    const { total, passing, passRate } = combinedPassRate(loaded.map((l) => l.report));
+    const { total, passing, passRate } = aggregate(loaded.map((l) => l.report));
     if (passRate < opts.failUnder) {
       console.error(
         `${red('fail')}: DMARC pass rate ${passRate}% (${passing}/${total}) is below the --fail-under threshold of ${opts.failUnder}%`,

@@ -1,6 +1,6 @@
 {
   "name": "@koduhai/dmarc-parser",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Parse DMARC aggregate (RUA) reports — XML, .gz/.zip, or raw MIME email — into typed JSON. Zero-config CLI + tiny library.",
   "keywords": [
     "dmarc",
@@ -56,6 +56,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint .",
+    "lint:package": "publint && attw --pack . --profile esm-only",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "npm run lint && npm run format:check && npm run typecheck && npm run test",
@@ -67,6 +68,7 @@
     "mailparser": "^3.7.1"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.3",
     "@eslint/js": "^9.13.0",
     "@types/mailparser": "^3.4.4",
     "@types/node": "^22.0.0",
@@ -75,6 +77,7 @@
     "eslint-config-prettier": "^9.1.0",
     "fast-check": "^4.8.0",
     "prettier": "^3.3.0",
+    "publint": "^0.3.21",
     "typescript": "^5.6.0",
     "typescript-eslint": "^8.12.0",
     "vitest": "^4.0.0"

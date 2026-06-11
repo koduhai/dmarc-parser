@@ -115,6 +115,18 @@ export interface DmarcSummary {
   bySourceIp: DmarcSourceSummary[];
 }
 
+/** Combined view across many reports, produced by {@link aggregate}. Extends {@link DmarcSummary}. */
+export interface DmarcAggregate extends DmarcSummary {
+  /** Number of reports aggregated. */
+  reportCount: number;
+  /** Earliest report-window start across all reports, or null if none had a valid date. */
+  dateBegin: Date | null;
+  /** Latest report-window end across all reports, or null if none had a valid date. */
+  dateEnd: Date | null;
+  /** Distinct policy domains seen across the reports, sorted. */
+  domains: string[];
+}
+
 // Cap on report payload size (compressed output and raw XML alike). Bounds what reaches the
 // XML parser and limits a decompression-bomb attachment. We reject up front where the size is
 // known cheaply (zip entry headers, the gzip ISIZE trailer) and re-check after inflating.
@@ -247,15 +259,12 @@ export function recordPassesDmarc(rec: DmarcRecord): boolean {
 
 const round1 = (n: number): number => Math.round(n * 10) / 10;
 
-/**
- * Aggregate a parsed report into message totals, an overall DMARC pass rate, and a
- * per-source-IP breakdown. Pure and synchronous; shared by the CLI summary view.
- */
-export function summarize(report: DmarcReport): DmarcSummary {
+// Core rollup shared by summarize() (one report) and aggregate() (many).
+function summarizeRecords(records: DmarcRecord[]): DmarcSummary {
   let total = 0;
   let passing = 0;
   const byIp = new Map<string, { count: number; passing: number }>();
-  for (const rec of report.records) {
+  for (const rec of records) {
     const passed = recordPassesDmarc(rec);
     total += rec.count;
     if (passed) passing += rec.count;
@@ -279,6 +288,38 @@ export function summarize(report: DmarcReport): DmarcSummary {
     passRate: total === 0 ? 0 : round1((passing / total) * 100),
     bySourceIp,
   };
+}
+
+/**
+ * Aggregate a parsed report into message totals, an overall DMARC pass rate, and a
+ * per-source-IP breakdown. Pure and synchronous; shared by the CLI summary view.
+ */
+export function summarize(report: DmarcReport): DmarcSummary {
+  return summarizeRecords(report.records);
+}
+
+const isValidDate = (d: unknown): d is Date => d instanceof Date && !Number.isNaN(d.getTime());
+
+/**
+ * Combine many reports into one rollup: message totals, overall pass rate, and a per-source-IP
+ * breakdown spanning every report, plus the covered date window and the distinct policy domains.
+ * Useful for the real workflow of many daily reports rolled up over a date range. Pure and sync.
+ */
+export function aggregate(reports: DmarcReport[]): DmarcAggregate {
+  const summary = summarizeRecords(reports.flatMap((r) => r.records));
+  const domains = new Set<string>();
+  let dateBegin: Date | null = null;
+  let dateEnd: Date | null = null;
+  for (const { meta } of reports) {
+    if (meta.domain) domains.add(meta.domain);
+    if (isValidDate(meta.dateBegin) && (dateBegin === null || meta.dateBegin < dateBegin)) {
+      dateBegin = meta.dateBegin;
+    }
+    if (isValidDate(meta.dateEnd) && (dateEnd === null || meta.dateEnd > dateEnd)) {
+      dateEnd = meta.dateEnd;
+    }
+  }
+  return { ...summary, reportCount: reports.length, dateBegin, dateEnd, domains: [...domains].sort() };
 }
 
 /**
