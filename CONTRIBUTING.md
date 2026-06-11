@@ -42,12 +42,29 @@ Run `npm run check` before opening a PR. CI runs the same gate on Node 20, 22, a
 ## Pull requests
 
 1. Branch from `main`. Use a descriptive branch name (e.g. `fix/zip-entry-selection`).
-2. Make focused, atomic commits with [Conventional Commit](https://www.conventionalcommits.org/)
-   style subjects (`fix:`, `feat:`, `docs:`, `chore:`, `test:`, `refactor:`, ...).
+2. Make focused, atomic commits (see Commit and PR conventions below).
 3. Add or update tests for any behavior change. Parser changes especially should come
    with a test that captures the input that motivated them.
 4. Update `README.md` and `CHANGELOG.md` when you change public behavior or the API.
 5. Make sure `npm run check` passes.
+
+## Commit and PR conventions
+
+Commit messages and PR titles follow [Conventional Commits](https://www.conventionalcommits.org/):
+`<type>: <imperative, lowercase summary>` (≤ 72 chars). Allowed types:
+
+`feat` · `fix` · `chore` · `docs` · `refactor` · `perf` · `test` · `ci` · `build`
+
+This is enforced in three places, so format issues surface early:
+
+- **Locally**: a husky `commit-msg` hook runs commitlint (installed automatically by
+  `npm install`). To bypass it in an emergency, `git commit --no-verify`.
+- **In CI**: the _Commit lint_ workflow checks every commit in a PR.
+- **PR title**: the _PR title_ workflow validates the title (it becomes the commit
+  subject if a PR is ever squash-merged).
+
+Rules live in `commitlint.config.js`. Run `npx commitlint --from origin/main` to check
+your branch locally.
 
 ## Reporting parsing bugs
 
