@@ -73,7 +73,9 @@ describe('parseDmarcXml fuzzing', () => {
           if (e instanceof DmarcParseError) return;
           // A vitest assertion failure inside assertWellFormed is an AssertionError; let it surface.
           if (e instanceof Error && e.constructor.name.includes('Assertion')) throw e;
-          throw new Error(`unexpected ${(e as Error).constructor.name}: ${(e as Error).message}`);
+          throw new Error(`unexpected ${(e as Error).constructor.name}: ${(e as Error).message}`, {
+            cause: e,
+          });
         }
       }),
       { numRuns: 2000 },
@@ -88,7 +90,9 @@ describe('parseDmarcXml fuzzing', () => {
         } catch (e) {
           if (e instanceof DmarcParseError) return;
           if (e instanceof Error && e.constructor.name.includes('Assertion')) throw e;
-          throw new Error(`unexpected ${(e as Error).constructor.name}: ${(e as Error).message}`);
+          throw new Error(`unexpected ${(e as Error).constructor.name}: ${(e as Error).message}`, {
+            cause: e,
+          });
         }
       }),
       { numRuns: 2000 },
@@ -108,7 +112,9 @@ describe('decompressReport fuzzing', () => {
           } catch (e) {
             if (e instanceof DmarcParseError) return;
             if (e instanceof Error && e.constructor.name.includes('Assertion')) throw e;
-            throw new Error(`unexpected ${(e as Error).constructor.name}: ${(e as Error).message}`);
+            throw new Error(`unexpected ${(e as Error).constructor.name}: ${(e as Error).message}`, {
+              cause: e,
+            });
           }
         },
       ),
