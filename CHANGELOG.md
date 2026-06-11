@@ -8,6 +8,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- CLI: accept multiple files, `--csv` and `--ndjson` output, a `--fail-under <n>`
+  gate (exit 3 when the combined pass rate is too low), and stdin auto-detection of
+  xml/gz/zip/eml. `main()` no longer runs on import, so it is unit-testable.
+- Property/fuzz tests (`fast-check`) asserting the parser and `decompressReport`
+  only ever return well-formed output or throw a typed `DmarcParseError` on any
+  input. `decompressReport` now wraps low-level codec errors accordingly and sniffs
+  the zip magic bytes for extension-less input.
 - Parse the full `policy_published` record (`adkim`, `aspf`, `sp`, `np`, `fo`),
   `report_metadata` `<error>` entries, all DKIM/SPF `auth_results` (not just the
   first), and `policy_evaluated` override reasons. New fields on `DmarcReportMeta`

@@ -42,17 +42,22 @@ npm install @koduhai/dmarc-parser
 ## CLI
 
 ```bash
-dmarc-parser <file>     # .xml, .xml.gz, .gz, .zip, or .eml
+dmarc-parser <file>...        # one or more .xml, .xml.gz, .gz, .zip, or .eml files
 dmarc-parser report.eml --json
-cat report.xml | dmarc-parser -
+dmarc-parser reports/*.xml.gz --csv > reports.csv
+cat report.xml | dmarc-parser -          # stdin auto-detects xml / gz / zip / eml
+dmarc-parser reports/*.gz --fail-under 95   # gate a CI job on deliverability
 ```
 
 | Flag | Effect |
 |---|---|
-| `--json` | Print the parsed report as JSON instead of the summary |
+| `--json` | Print parsed report(s) as pretty JSON (an array when given multiple files) |
+| `--ndjson` | Print one compact JSON report per line (stream-friendly) |
+| `--csv` | Print one CSV row per record across all inputs |
+| `--fail-under <n>` | Exit `3` if the combined DMARC pass rate is below `n` percent |
 | `-h`, `--help` | Show usage |
 
-Exit codes: `0` ok · `1` parse/read error · `2` usage error.
+Exit codes: `0` ok · `1` parse/read error · `2` usage error · `3` pass rate below `--fail-under`.
 
 ## Library
 
