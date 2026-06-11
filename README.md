@@ -62,6 +62,8 @@ import {
   decompressReport,  // (filename, bytes: Uint8Array) => string — .gz/.zip/.xml -> xml
   extractReportXml,  // (rawMime) => Promise<string>            — pull xml out of a MIME email
   parseReportEmail,  // (rawMime) => Promise<DmarcReport>       — extract + parse in one call
+  summarize,         // (report) => DmarcSummary                — totals, pass rate, per-IP rollup
+  recordPassesDmarc, // (record) => boolean                     — true if DKIM or SPF is aligned-pass
   DmarcParseError,
 } from '@koduhai/dmarc-parser';
 
@@ -72,9 +74,12 @@ const report = await parseReportEmail(readFileSync('report.eml'));
 
 console.log(report.meta.domain, report.meta.orgName);
 for (const r of report.records) {
-  const dmarcPass = r.dkimResult === 'pass' || r.spfResult === 'pass';
-  console.log(r.sourceIp, r.count, dmarcPass ? 'PASS' : 'FAIL');
+  console.log(r.sourceIp, r.count, recordPassesDmarc(r) ? 'PASS' : 'FAIL');
 }
+
+// Or skip the manual loop and get totals + a per-source-IP breakdown:
+const { total, passing, passRate, bySourceIp } = summarize(report);
+console.log(`${passRate}% pass (${passing}/${total})`);
 ```
 
 ### Types
@@ -86,13 +91,19 @@ interface DmarcReport {
 }
 
 interface DmarcReportMeta {
-  orgName: string;        // reporting org, e.g. "google.com"
-  reportId: string;       // unique id (use for idempotent ingestion)
-  domain: string;         // domain the policy applies to
+  orgName: string;            // reporting org, e.g. "google.com"
+  reportId: string;           // unique id (use for idempotent ingestion)
+  domain: string;             // domain the policy applies to
   dateBegin: Date;
   dateEnd: Date;
-  policyP: string | null; // "none" | "quarantine" | "reject"
+  policyP: string | null;     // "none" | "quarantine" | "reject"
+  policySp: string | null;    // subdomain policy
   policyPct: number | null;
+  policyAdkim: string | null; // DKIM alignment: "r" | "s"
+  policyAspf: string | null;  // SPF alignment: "r" | "s"
+  policyNp: string | null;    // policy for non-existent subdomains
+  policyFo: string | null;    // failure-reporting options
+  errors: string[];           // <error> entries the reporter included
 }
 
 interface DmarcRecord {
@@ -102,13 +113,25 @@ interface DmarcRecord {
   dkimResult: string | null;   // DMARC-aligned, from policy_evaluated
   spfResult: string | null;    // DMARC-aligned, from policy_evaluated
   headerFrom: string | null;
-  dkimDomain: string | null;
-  spfDomain: string | null;
+  dkimDomain: string | null;   // primary (first) DKIM-authenticated domain
+  spfDomain: string | null;    // primary (first) SPF-authenticated domain
+  dkimAuth: DkimAuthResult[];  // all DKIM signatures: { domain, selector, result }
+  spfAuth: SpfAuthResult[];    // all SPF results:     { domain, scope, result }
+  reasons: DmarcReason[];      // policy_evaluated overrides: { type, comment }
+}
+
+interface DmarcSummary {
+  total: number;               // total messages across all records
+  passing: number;
+  failing: number;
+  passRate: number;            // 0-100, one decimal
+  bySourceIp: { sourceIp: string; count: number; passing: number; passRate: number }[];
 }
 ```
 
 A message **passes DMARC** when at least one aligned mechanism (DKIM or SPF) passes, i.e.
-`dkimResult === 'pass' || spfResult === 'pass'`.
+`dkimResult === 'pass' || spfResult === 'pass'` (this is exactly what `recordPassesDmarc`
+and `summarize` use).
 
 ## Notes
 

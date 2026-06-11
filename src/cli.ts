@@ -1,6 +1,13 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs';
-import { parseDmarcXml, decompressReport, extractReportXml, DmarcParseError, type DmarcReport } from './parse.js';
+import {
+  parseDmarcXml,
+  decompressReport,
+  extractReportXml,
+  summarize,
+  DmarcParseError,
+  type DmarcReport,
+} from './parse.js';
 
 const USAGE = `dmarc-parser — parse a DMARC aggregate (RUA) report into a readable summary or JSON.
 
@@ -52,13 +59,18 @@ function passmark(result: string | null): string {
 }
 
 function printSummary(r: DmarcReport): void {
-  const total = r.records.reduce((n, rec) => n + rec.count, 0);
-  // A message passes DMARC when at least one aligned mechanism (DKIM or SPF) passes.
-  const passing = r.records
-    .filter((rec) => rec.dkimResult === 'pass' || rec.spfResult === 'pass')
-    .reduce((n, rec) => n + rec.count, 0);
-  const rate = total === 0 ? 0 : Math.round((passing / total) * 1000) / 10;
-  const rateStr = rate >= 95 ? green(`${rate}%`) : rate >= 80 ? yellow(`${rate}%`) : red(`${rate}%`);
+  const { total, passing, passRate } = summarize(r);
+  const rateStr =
+    passRate >= 95 ? green(`${passRate}%`) : passRate >= 80 ? yellow(`${passRate}%`) : red(`${passRate}%`);
+
+  // Compact policy line: only show fields the report actually published.
+  const policyBits = [
+    `p=${r.meta.policyP ?? 'none'}`,
+    r.meta.policySp != null ? `sp=${r.meta.policySp}` : '',
+    r.meta.policyAdkim != null ? `adkim=${r.meta.policyAdkim}` : '',
+    r.meta.policyAspf != null ? `aspf=${r.meta.policyAspf}` : '',
+    r.meta.policyPct != null ? `pct=${r.meta.policyPct}` : '',
+  ].filter(Boolean);
 
   const span = `${r.meta.dateBegin.toISOString().slice(0, 10)} → ${r.meta.dateEnd.toISOString().slice(0, 10)}`;
 
@@ -67,9 +79,7 @@ function printSummary(r: DmarcReport): void {
   console.log(`  ${dim('domain')}    ${bold(r.meta.domain || '(none)')}`);
   console.log(`  ${dim('reporter')}  ${r.meta.orgName}`);
   console.log(`  ${dim('window')}    ${span}`);
-  console.log(
-    `  ${dim('policy')}    p=${r.meta.policyP ?? 'none'}${r.meta.policyPct != null ? ` pct=${r.meta.policyPct}` : ''}`,
-  );
+  console.log(`  ${dim('policy')}    ${policyBits.join(' ')}`);
   console.log('');
   console.log(`  ${bold('DMARC pass rate')}  ${rateStr}   ${dim(`(${passing}/${total} messages)`)}`);
   console.log('');
@@ -79,8 +89,10 @@ function printSummary(r: DmarcReport): void {
     `  ${dim('source ip'.padEnd(ipW))}  ${dim('count'.padStart(6))}  ${dim('dkim')}  ${dim('spf')}   ${dim('disposition')}`,
   );
   for (const rec of r.records) {
+    const reasonTypes = rec.reasons.map((x) => x.type).filter(Boolean);
+    const reason = reasonTypes.length ? dim(` (${reasonTypes.join(', ')})`) : '';
     console.log(
-      `  ${rec.sourceIp.padEnd(ipW)}  ${String(rec.count).padStart(6)}  ${passmark(rec.dkimResult)}  ${passmark(rec.spfResult)}   ${rec.disposition ?? '-'}`,
+      `  ${rec.sourceIp.padEnd(ipW)}  ${String(rec.count).padStart(6)}  ${passmark(rec.dkimResult)}  ${passmark(rec.spfResult)}   ${rec.disposition ?? '-'}${reason}`,
     );
   }
   console.log('');

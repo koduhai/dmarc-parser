@@ -1,6 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { gzipSync, zipSync, strToU8, strFromU8 } from 'fflate';
-import { parseDmarcXml, extractReportXml, decompressReport, parseReportEmail, DmarcParseError } from './parse.js';
+import {
+  parseDmarcXml,
+  extractReportXml,
+  decompressReport,
+  parseReportEmail,
+  summarize,
+  recordPassesDmarc,
+  DmarcParseError,
+} from './parse.js';
 
 const XML = `<?xml version="1.0" encoding="UTF-8"?>
 <feedback>
@@ -99,6 +107,45 @@ describe('parseDmarcXml', () => {
     expect(r.meta.domain).toBe('empty.com');
   });
 
+  it('parses extended policy fields, auth_results arrays, and override reasons', () => {
+    const xml = `<?xml version="1.0"?><feedback>
+      <report_metadata><org_name>o.com</org_name><report_id>RID-X</report_id>
+        <error>boom</error>
+        <date_range><begin>1717200000</begin><end>1717286400</end></date_range></report_metadata>
+      <policy_published><domain>d.com</domain><adkim>s</adkim><aspf>r</aspf>
+        <p>reject</p><sp>quarantine</sp><np>reject</np><fo>1</fo><pct>50</pct></policy_published>
+      <record><row><source_ip>192.0.2.1</source_ip><count>3</count>
+        <policy_evaluated><disposition>none</disposition><dkim>pass</dkim><spf>fail</spf>
+          <reason><type>forwarded</type><comment>list</comment></reason></policy_evaluated></row>
+        <auth_results>
+          <dkim><domain>a.com</domain><selector>s1</selector><result>pass</result></dkim>
+          <dkim><domain>b.com</domain><selector>s2</selector><result>fail</result></dkim>
+          <spf><domain>a.com</domain><scope>mfrom</scope><result>fail</result></spf>
+        </auth_results></record></feedback>`;
+    const r = parseDmarcXml(xml);
+    expect(r.meta).toMatchObject({
+      policyAdkim: 's',
+      policyAspf: 'r',
+      policySp: 'quarantine',
+      policyNp: 'reject',
+      policyFo: '1',
+      policyPct: 50,
+      errors: ['boom'],
+    });
+    const rec = r.records[0];
+    expect(rec.dkimAuth).toHaveLength(2);
+    expect(rec.dkimAuth[1]).toMatchObject({ domain: 'b.com', selector: 's2', result: 'fail' });
+    expect(rec.spfAuth[0]).toMatchObject({ domain: 'a.com', scope: 'mfrom', result: 'fail' });
+    expect(rec.dkimDomain).toBe('a.com');
+    expect(rec.reasons).toEqual([{ type: 'forwarded', comment: 'list' }]);
+  });
+
+  it('defaults extended fields to null / empty when absent', () => {
+    const r = parseDmarcXml(SINGLE_RECORD_XML);
+    expect(r.meta).toMatchObject({ policyAdkim: null, policyAspf: null, policySp: null, errors: [] });
+    expect(r.records[0]).toMatchObject({ dkimAuth: [], spfAuth: [], reasons: [], dkimDomain: null });
+  });
+
   it('coerces non-numeric / negative count and pct to safe values', () => {
     const xml = `<?xml version="1.0"?><feedback>
       <report_metadata><org_name>x.com</org_name><report_id>RID-9</report_id>
@@ -109,6 +156,47 @@ describe('parseDmarcXml', () => {
     const r = parseDmarcXml(xml);
     expect(r.meta.policyPct).toBe(0);
     expect(r.records[0].count).toBe(0);
+  });
+});
+
+describe('summarize / recordPassesDmarc', () => {
+  it('totals messages, computes the pass rate, and rolls up by source IP', () => {
+    const s = summarize(parseDmarcXml(XML));
+    // Both rows pass DMARC (row 1 via DKIM+SPF, row 2 via SPF alone).
+    expect(s).toMatchObject({ total: 7, passing: 7, failing: 0, passRate: 100 });
+    expect(s.bySourceIp).toEqual([
+      { sourceIp: '203.0.113.1', count: 5, passing: 5, passRate: 100 },
+      { sourceIp: '198.51.100.7', count: 2, passing: 2, passRate: 100 },
+    ]);
+  });
+
+  it('counts a row as failing when neither DKIM nor SPF is aligned-pass', () => {
+    const s = summarize(parseDmarcXml(SINGLE_RECORD_XML)); // dkim pass, spf fail -> passes
+    expect(s).toMatchObject({ total: 3, passing: 3, passRate: 100 });
+  });
+
+  it('aggregates rows that share a source IP and rounds the rate to one decimal', () => {
+    const xml = `<?xml version="1.0"?><feedback>
+      <report_metadata><org_name>o.com</org_name><report_id>RID-A</report_id>
+        <date_range><begin>1717200000</begin><end>1717286400</end></date_range></report_metadata>
+      <policy_published><domain>d.com</domain><p>none</p></policy_published>
+      <record><row><source_ip>192.0.2.1</source_ip><count>2</count>
+        <policy_evaluated><dkim>pass</dkim><spf>pass</spf></policy_evaluated></row></record>
+      <record><row><source_ip>192.0.2.1</source_ip><count>1</count>
+        <policy_evaluated><dkim>fail</dkim><spf>fail</spf></policy_evaluated></row></record></feedback>`;
+    const s = summarize(parseDmarcXml(xml));
+    expect(s).toMatchObject({ total: 3, passing: 2, failing: 1, passRate: 66.7 });
+    expect(s.bySourceIp).toEqual([{ sourceIp: '192.0.2.1', count: 3, passing: 2, passRate: 66.7 }]);
+  });
+
+  it('returns a zero pass rate for an empty report instead of NaN', () => {
+    const s = summarize({ meta: {} as never, records: [] });
+    expect(s).toMatchObject({ total: 0, passing: 0, passRate: 0, bySourceIp: [] });
+  });
+
+  it('recordPassesDmarc requires at least one aligned pass', () => {
+    expect(recordPassesDmarc({ dkimResult: 'fail', spfResult: 'pass' } as never)).toBe(true);
+    expect(recordPassesDmarc({ dkimResult: 'fail', spfResult: 'fail' } as never)).toBe(false);
   });
 });
 

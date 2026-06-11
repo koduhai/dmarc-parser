@@ -8,6 +8,15 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Parse the full `policy_published` record (`adkim`, `aspf`, `sp`, `np`, `fo`),
+  `report_metadata` `<error>` entries, all DKIM/SPF `auth_results` (not just the
+  first), and `policy_evaluated` override reasons. New fields on `DmarcReportMeta`
+  and `DmarcRecord`, plus `DkimAuthResult`, `SpfAuthResult`, and `DmarcReason`.
+- `summarize(report)` and `recordPassesDmarc(record)` helpers: message totals, an
+  overall DMARC pass rate, and a per-source-IP rollup (`DmarcSummary`). The CLI now
+  uses `summarize` and shows alignment/subdomain policy and override reasons.
+- Provider-representative test fixtures (Google, Yahoo, Microsoft) under
+  `src/__fixtures__/`.
 - Linting and formatting tooling (ESLint 9 flat config, Prettier) plus a single
   `npm run check` gate.
 - GitHub Actions CI across Node 20, 22, and 24; Dependabot for npm and Actions.
