@@ -6,6 +6,7 @@ import {
   decompressReport,
   parseReportEmail,
   summarize,
+  aggregate,
   recordPassesDmarc,
   DmarcParseError,
 } from './parse.js';
@@ -209,6 +210,47 @@ describe('summarize / recordPassesDmarc', () => {
   it('recordPassesDmarc requires at least one aligned pass', () => {
     expect(recordPassesDmarc({ dkimResult: 'fail', spfResult: 'pass' } as never)).toBe(true);
     expect(recordPassesDmarc({ dkimResult: 'fail', spfResult: 'fail' } as never)).toBe(false);
+  });
+});
+
+describe('aggregate', () => {
+  it('combines records, dates, and domains across reports', () => {
+    const a = aggregate([parseDmarcXml(XML), parseDmarcXml(SINGLE_RECORD_XML)]);
+    expect(a.reportCount).toBe(2);
+    expect(a).toMatchObject({ total: 10, passing: 10, failing: 0, passRate: 100 });
+    expect(a.domains).toEqual(['example.com', 'solo.com']);
+    // Per-IP rollup spans both reports, sorted by count desc.
+    expect(a.bySourceIp.map((b) => b.sourceIp)).toEqual(['203.0.113.1', '192.0.2.5', '198.51.100.7']);
+    expect(a.dateBegin?.getTime()).toBe(1717200000 * 1000);
+    expect(a.dateEnd?.getTime()).toBe(1717286400 * 1000);
+  });
+
+  it('merges the same source IP across reports and spans the widest date window', () => {
+    const mk = (rid: string, begin: number, end: number, count: number, pass: boolean) =>
+      parseDmarcXml(`<?xml version="1.0"?><feedback>
+        <report_metadata><org_name>o</org_name><report_id>${rid}</report_id>
+          <date_range><begin>${begin}</begin><end>${end}</end></date_range></report_metadata>
+        <policy_published><domain>d.com</domain><p>none</p></policy_published>
+        <record><row><source_ip>192.0.2.1</source_ip><count>${count}</count>
+          <policy_evaluated><dkim>${pass ? 'pass' : 'fail'}</dkim><spf>fail</spf></policy_evaluated></row></record></feedback>`);
+    const a = aggregate([mk('r1', 1000, 2000, 3, true), mk('r2', 500, 1500, 1, false)]);
+    expect(a.bySourceIp).toEqual([{ sourceIp: '192.0.2.1', count: 4, passing: 3, passRate: 75 }]);
+    expect(a.dateBegin?.getTime()).toBe(500 * 1000);
+    expect(a.dateEnd?.getTime()).toBe(2000 * 1000);
+    expect(a.domains).toEqual(['d.com']);
+  });
+
+  it('returns an empty aggregate for no reports', () => {
+    expect(aggregate([])).toMatchObject({
+      total: 0,
+      passing: 0,
+      passRate: 0,
+      reportCount: 0,
+      bySourceIp: [],
+      domains: [],
+      dateBegin: null,
+      dateEnd: null,
+    });
   });
 });
 

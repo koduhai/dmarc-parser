@@ -34,6 +34,7 @@ npm run check   # lint + format check + typecheck + tests, the same gate CI runs
 | `npm run format:check` | Verify formatting without writing |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run build` | Emit `dist/` |
+| `npm run lint:package` | Validate the built package with publint + are-the-types-wrong (run after `build`) |
 | `npm run check` | Everything CI checks, in one command |
 
 Run `npm run check` before opening a PR. CI runs the same gate on Node 20, 22, and 24.
