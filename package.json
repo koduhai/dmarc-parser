@@ -1,0 +1,82 @@
+{
+  "name": "@koduhai/dmarc-parser",
+  "version": "0.1.0",
+  "description": "Parse DMARC aggregate (RUA) reports — XML, .gz/.zip, or raw MIME email — into typed JSON. Zero-config CLI + tiny library.",
+  "keywords": [
+    "dmarc",
+    "dmarc-report",
+    "dmarc-parser",
+    "rua",
+    "aggregate-report",
+    "email",
+    "deliverability",
+    "spf",
+    "dkim",
+    "email-authentication"
+  ],
+  "license": "MIT",
+  "author": "Koduhai",
+  "homepage": "https://github.com/koduhai/dmarc-parser#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/koduhai/dmarc-parser.git"
+  },
+  "bugs": {
+    "url": "https://github.com/koduhai/dmarc-parser/issues"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "dmarc-parser": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "CHANGELOG.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm run lint && npm run format:check && npm run typecheck && npm run test",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^5.2.5",
+    "fflate": "^0.8.2",
+    "mailparser": "^3.7.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.13.0",
+    "@types/mailparser": "^3.4.4",
+    "@types/node": "^22.0.0",
+    "@vitest/coverage-v8": "^4.0.0",
+    "eslint": "^9.13.0",
+    "eslint-config-prettier": "^9.1.0",
+    "fast-check": "^4.8.0",
+    "prettier": "^3.3.0",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.12.0",
+    "vitest": "^4.0.0"
+  }
+}

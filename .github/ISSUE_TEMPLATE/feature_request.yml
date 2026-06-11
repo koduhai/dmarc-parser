@@ -1,0 +1,22 @@
+name: Feature request
+description: Suggest an improvement. Note the project deliberately stays small and scoped to aggregate (RUA) reports.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Describe the use case, not just the feature.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This stays within aggregate (RUA) report parsing and does not pull in heavy dependencies.
+          required: true

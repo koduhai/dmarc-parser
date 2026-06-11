@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+*.log
+.DS_Store
+
+# Local secrets and build/test artifacts
+.env
+.env.*
+*.tgz
+*.eml

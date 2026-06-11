@@ -1,0 +1,69 @@
+name: Release
+
+# Publish to npm when a version tag (vX.Y.Z) is pushed. The tag must match the
+# version in package.json. Authenticates via npm Trusted Publishing (OIDC) — no
+# long-lived NPM_TOKEN — and provenance is generated automatically
+# (https://docs.npmjs.com/trusted-publishers).
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: read
+  id-token: write # required for Trusted Publishing / provenance (Sigstore OIDC)
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24' # Trusted Publishing needs Node >= 22.14
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Upgrade npm (Trusted Publishing needs npm >= 11.5.1)
+        run: npm install -g npm@latest
+
+      - run: npm ci
+
+      - name: Verify the tag matches package.json
+        run: |
+          pkg="v$(node -p "require('./package.json').version")"
+          if [ "$pkg" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} does not match package.json version ($pkg)"
+            exit 1
+          fi
+
+      - name: Check (lint, format, typecheck, test)
+        run: npm run check
+
+      - run: npm run build
+
+      - name: Verify the published tarball contains the build output
+        run: |
+          files=$(npm pack --dry-run --json \
+            | node -e "const d=JSON.parse(require('fs').readFileSync(0,'utf8')); console.log(d[0].files.map(f=>f.path).join('\n'))")
+          echo "$files"
+          for required in dist/index.js dist/index.d.ts dist/cli.js; do
+            echo "$files" | grep -qx "$required" || { echo "::error::missing $required in package"; exit 1; }
+          done
+
+      - name: Skip if this version is already on npm
+        id: check
+        run: |
+          name=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          if npm view "$name@$version" version >/dev/null 2>&1; then
+            echo "already=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::$name@$version is already published; skipping publish"
+          else
+            echo "already=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish to npm (Trusted Publishing, provenance is automatic)
+        if: steps.check.outputs.already == 'false'
+        run: npm publish --access public

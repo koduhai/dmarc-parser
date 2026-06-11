@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feedback>
+  <report_metadata>
+    <org_name>Enterprise Outlook</org_name>
+    <email>dmarcreport@microsoft.com</email>
+    <report_id>0a1b2c3d4e5f60718293a4b5c6d7e8f9</report_id>
+    <date_range>
+      <begin>1717200000</begin>
+      <end>1717286400</end>
+    </date_range>
+    <error>Some records were sampled.</error>
+  </report_metadata>
+  <policy_published>
+    <domain>example.com</domain>
+    <adkim>r</adkim>
+    <aspf>r</aspf>
+    <p>quarantine</p>
+    <sp>none</sp>
+    <pct>100</pct>
+    <fo>1</fo>
+  </policy_published>
+  <record>
+    <row>
+      <source_ip>192.0.2.20</source_ip>
+      <count>15</count>
+      <policy_evaluated>
+        <disposition>none</disposition>
+        <dkim>pass</dkim>
+        <spf>fail</spf>
+        <reason>
+          <type>forwarded</type>
+          <comment>mailing list</comment>
+        </reason>
+      </policy_evaluated>
+    </row>
+    <identifiers>
+      <header_from>example.com</header_from>
+    </identifiers>
+    <auth_results>
+      <dkim>
+        <domain>example.com</domain>
+        <selector>selector1</selector>
+        <result>pass</result>
+      </dkim>
+      <dkim>
+        <domain>list.example.org</domain>
+        <selector>mlist</selector>
+        <result>pass</result>
+      </dkim>
+      <spf>
+        <domain>bounce.example.org</domain>
+        <result>fail</result>
+        <scope>mfrom</scope>
+      </spf>
+    </auth_results>
+  </record>
+</feedback>

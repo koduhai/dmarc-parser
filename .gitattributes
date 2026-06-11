@@ -1,0 +1,11 @@
+# Normalize line endings: store text as LF in the repo, regardless of contributor OS.
+* text=auto eol=lf
+
+# Keep these binary / untouched.
+*.png binary
+*.jpg binary
+*.gz binary
+*.zip binary
+
+# Exclude noise from language stats and release tarballs.
+package-lock.json -diff
