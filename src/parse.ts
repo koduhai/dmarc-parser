@@ -283,25 +283,27 @@ export function summarize(report: DmarcReport): DmarcSummary {
 /**
  * Decompress a report payload into XML text given its filename and raw bytes.
  * Handles `.xml`, `.xml.gz`/`.gz`, and `.zip` (first `.xml` entry). For unknown
- * extensions it sniffs the gzip magic bytes, else assumes raw XML.
- * @throws {DmarcParseError} when a `.zip` has no `.xml` entry or a size cap is exceeded.
+ * extensions it sniffs the gzip/zip magic bytes, else assumes raw XML.
+ * @throws {DmarcParseError} on corrupt archives, a `.zip` with no `.xml` entry, or a size cap.
  */
 export function decompressReport(filename: string, bytes: Uint8Array): string {
   const name = filename.toLowerCase();
-  if (name.endsWith('.gz')) {
-    return strFromU8(gunzipCapped(bytes));
-  }
-  if (name.endsWith('.zip')) {
-    return strFromU8(capDecompressed(unzipXmlEntry(bytes)));
-  }
-  if (name.endsWith('.xml')) {
+  // Corrupt gzip/zip input makes the underlying codec throw its own error type; wrap everything
+  // here so callers only ever see a typed DmarcParseError, never a raw fflate/decoder failure.
+  try {
+    if (name.endsWith('.gz')) return strFromU8(gunzipCapped(bytes));
+    if (name.endsWith('.zip')) return strFromU8(capDecompressed(unzipXmlEntry(bytes)));
+    if (name.endsWith('.xml')) return strFromU8(capDecompressed(bytes));
+    // Unknown extension: sniff the gzip (1f 8b) or zip (PK\x03\x04) magic, else assume raw XML.
+    if (bytes[0] === 0x1f && bytes[1] === 0x8b) return strFromU8(gunzipCapped(bytes));
+    if (bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04) {
+      return strFromU8(capDecompressed(unzipXmlEntry(bytes)));
+    }
     return strFromU8(capDecompressed(bytes));
+  } catch (e) {
+    if (e instanceof DmarcParseError) throw e;
+    throw new DmarcParseError(`could not decompress report: ${(e as Error).message}`);
   }
-  // Unknown extension: sniff the gzip magic number (1f 8b), else assume raw XML.
-  if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
-    return strFromU8(gunzipCapped(bytes));
-  }
-  return strFromU8(capDecompressed(bytes));
 }
 
 // Extract the first `.xml` entry from a zip. The filter runs against each entry's central-directory
