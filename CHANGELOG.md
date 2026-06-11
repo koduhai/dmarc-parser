@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1](https://github.com/koduhai/dmarc-parser/compare/v0.2.0...v0.2.1) (2026-06-11)
+
+
+### Bug Fixes
+
+* pin ossf/scorecard-action to v2.4.3 ([80d9a8e](https://github.com/koduhai/dmarc-parser/commit/80d9a8e183c05dfacaab4ab46155ee56c983553d))
+* pin ossf/scorecard-action to v2.4.3 ([7ae9b50](https://github.com/koduhai/dmarc-parser/commit/7ae9b509d1aa366751be95b9b135385e744a8031))
+
 ## [0.2.0] - 2026-06-11
 
 ### Added
