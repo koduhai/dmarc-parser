@@ -42,23 +42,35 @@
     "LICENSE"
   ],
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm run lint && npm run format:check && npm run typecheck && npm run test",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "fast-xml-parser": "^4.5.0",
+    "fast-xml-parser": "^5.2.5",
     "fflate": "^0.8.2",
     "mailparser": "^3.7.1"
   },
   "devDependencies": {
+    "@eslint/js": "^9.13.0",
     "@types/mailparser": "^3.4.4",
     "@types/node": "^22.0.0",
+    "@vitest/coverage-v8": "^4.0.0",
+    "eslint": "^9.13.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.3.0",
     "typescript": "^5.6.0",
-    "vitest": "^2.1.0"
+    "typescript-eslint": "^8.12.0",
+    "vitest": "^4.0.0"
   }
 }
