@@ -67,13 +67,17 @@ function printSummary(r: DmarcReport): void {
   console.log(`  ${dim('domain')}    ${bold(r.meta.domain || '(none)')}`);
   console.log(`  ${dim('reporter')}  ${r.meta.orgName}`);
   console.log(`  ${dim('window')}    ${span}`);
-  console.log(`  ${dim('policy')}    p=${r.meta.policyP ?? 'none'}${r.meta.policyPct != null ? ` pct=${r.meta.policyPct}` : ''}`);
+  console.log(
+    `  ${dim('policy')}    p=${r.meta.policyP ?? 'none'}${r.meta.policyPct != null ? ` pct=${r.meta.policyPct}` : ''}`,
+  );
   console.log('');
   console.log(`  ${bold('DMARC pass rate')}  ${rateStr}   ${dim(`(${passing}/${total} messages)`)}`);
   console.log('');
 
   const ipW = Math.max(9, ...r.records.map((rec) => rec.sourceIp.length));
-  console.log(`  ${dim('source ip'.padEnd(ipW))}  ${dim('count'.padStart(6))}  ${dim('dkim')}  ${dim('spf')}   ${dim('disposition')}`);
+  console.log(
+    `  ${dim('source ip'.padEnd(ipW))}  ${dim('count'.padStart(6))}  ${dim('dkim')}  ${dim('spf')}   ${dim('disposition')}`,
+  );
   for (const rec of r.records) {
     console.log(
       `  ${rec.sourceIp.padEnd(ipW)}  ${String(rec.count).padStart(6)}  ${passmark(rec.dkimResult)}  ${passmark(rec.spfResult)}   ${rec.disposition ?? '-'}`,

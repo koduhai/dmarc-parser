@@ -1,5 +1,5 @@
 import { simpleParser, type ParsedMail } from 'mailparser';
-import { gunzipSync, unzipSync, strFromU8 } from 'fflate';
+import { gunzipSync, unzipSync, strFromU8, type UnzipFileInfo } from 'fflate';
 import { XMLParser } from 'fast-xml-parser';
 
 /** Thrown for any malformed input: bad XML, missing root, no report attachment, oversized payload. */
@@ -51,22 +51,50 @@ export interface DmarcReport {
   records: DmarcRecord[];
 }
 
-// Cap on decompressed report size. Bounds what reaches the XML parser and limits a
-// decompression-bomb attachment. A fully streaming size-capped inflate is a further hardening.
+// Cap on report payload size (compressed output and raw XML alike). Bounds what reaches the
+// XML parser and limits a decompression-bomb attachment. We reject up front where the size is
+// known cheaply (zip entry headers, the gzip ISIZE trailer) and re-check after inflating.
 const MAX_DECOMPRESSED_BYTES = 50 * 1024 * 1024;
+
 function capDecompressed(out: Uint8Array): Uint8Array {
   if (out.length > MAX_DECOMPRESSED_BYTES) throw new DmarcParseError('decompressed report exceeds size cap');
   return out;
 }
 
+// gzip stores the uncompressed size (mod 2^32) in its last 4 bytes. Reading it lets us reject an
+// oversized payload before inflating. It is only a fast pre-check (the modulus makes it unreliable
+// above 4 GiB), so capDecompressed() after inflation remains the real backstop.
+function gunzipCapped(bytes: Uint8Array): Uint8Array {
+  if (bytes.length >= 18) {
+    const isize = new DataView(bytes.buffer, bytes.byteOffset + bytes.length - 4, 4).getUint32(0, true);
+    if (isize > MAX_DECOMPRESSED_BYTES) throw new DmarcParseError('decompressed report exceeds size cap');
+  }
+  return capDecompressed(gunzipSync(bytes));
+}
+
 const str = (v: unknown): string | null => (v == null ? null : String(v));
 const firstOf = <T>(v: T | T[] | undefined): T | undefined => (Array.isArray(v) ? v[0] : v);
+
+// Coerce to a finite, non-negative number; anything else (NaN, "abc", -1, Infinity) becomes the
+// fallback. DMARC counts and percentages are non-negative integers; bad data should not poison them.
+function toCount(v: unknown, fallback = 0): number {
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : fallback;
+}
 
 /**
  * Parse aggregate report XML into a typed structure. Pure, synchronous, no I/O.
  * @throws {DmarcParseError} on invalid XML or a missing `<feedback>`/metadata.
  */
 export function parseDmarcXml(xml: string): DmarcReport {
+  if (typeof xml !== 'string') throw new DmarcParseError('expected XML string input');
+  if (xml.length > MAX_DECOMPRESSED_BYTES) throw new DmarcParseError('XML input exceeds size cap');
+  // Reject any DOCTYPE/DTD. Aggregate reports never carry one, and forbidding it closes the
+  // entity-expansion ("billion laughs") vector outright: with no custom <!ENTITY> definitions only
+  // the five predefined XML entities can expand, none of which amplify. (fast-xml-parser does not
+  // resolve external entities, so XXE was never reachable.)
+  if (/<!doctype/i.test(xml)) throw new DmarcParseError('DOCTYPE/DTD is not allowed');
+
   const parser = new XMLParser({ ignoreAttributes: true });
   let doc: Record<string, unknown>;
   try {
@@ -85,10 +113,10 @@ export function parseDmarcXml(xml: string): DmarcReport {
     orgName: String(md.org_name ?? ''),
     reportId: String(md.report_id ?? ''),
     domain: String(pol.domain ?? ''),
-    dateBegin: new Date(Number(dr.begin ?? 0) * 1000),
-    dateEnd: new Date(Number(dr.end ?? 0) * 1000),
+    dateBegin: new Date(toCount(dr.begin) * 1000),
+    dateEnd: new Date(toCount(dr.end) * 1000),
     policyP: str(pol.p),
-    policyPct: pol.pct == null ? null : Number(pol.pct),
+    policyPct: pol.pct == null ? null : toCount(pol.pct),
   };
   if (!meta.orgName || !meta.reportId) {
     throw new DmarcParseError('missing report_metadata org_name/report_id');
@@ -106,7 +134,7 @@ export function parseDmarcXml(xml: string): DmarcReport {
     const spfAuth = firstOf(auth.spf as Record<string, unknown> | Record<string, unknown>[] | undefined);
     return {
       sourceIp: String(row.source_ip ?? ''),
-      count: Number(row.count ?? 0),
+      count: toCount(row.count),
       disposition: str(evaluated.disposition),
       dkimResult: str(evaluated.dkim),
       spfResult: str(evaluated.spf),
@@ -128,22 +156,37 @@ export function parseDmarcXml(xml: string): DmarcReport {
 export function decompressReport(filename: string, bytes: Uint8Array): string {
   const name = filename.toLowerCase();
   if (name.endsWith('.gz')) {
-    return strFromU8(capDecompressed(gunzipSync(bytes)));
+    return strFromU8(gunzipCapped(bytes));
   }
   if (name.endsWith('.zip')) {
-    const files = unzipSync(bytes);
-    const entry = Object.entries(files).find(([fn]) => fn.toLowerCase().endsWith('.xml'));
-    if (!entry) throw new DmarcParseError('no .xml entry inside zip');
-    return strFromU8(capDecompressed(entry[1]));
+    return strFromU8(capDecompressed(unzipXmlEntry(bytes)));
   }
   if (name.endsWith('.xml')) {
-    return strFromU8(bytes);
+    return strFromU8(capDecompressed(bytes));
   }
   // Unknown extension: sniff the gzip magic number (1f 8b), else assume raw XML.
   if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
-    return strFromU8(capDecompressed(gunzipSync(bytes)));
+    return strFromU8(gunzipCapped(bytes));
   }
-  return strFromU8(bytes);
+  return strFromU8(capDecompressed(bytes));
+}
+
+// Extract the first `.xml` entry from a zip. The filter runs against each entry's central-directory
+// header *before* inflation, so checking originalSize there rejects a zip bomb without ever
+// decompressing it, and skips non-xml entries entirely (their bytes are never expanded into memory).
+function unzipXmlEntry(bytes: Uint8Array): Uint8Array {
+  const files = unzipSync(bytes, {
+    filter: (f: UnzipFileInfo) => {
+      const isXml = f.name.toLowerCase().endsWith('.xml');
+      if (isXml && f.originalSize > MAX_DECOMPRESSED_BYTES) {
+        throw new DmarcParseError('decompressed report exceeds size cap');
+      }
+      return isXml;
+    },
+  });
+  const entry = Object.values(files)[0];
+  if (!entry) throw new DmarcParseError('no .xml entry inside zip');
+  return entry;
 }
 
 function xmlFromAttachments(mail: ParsedMail): string {

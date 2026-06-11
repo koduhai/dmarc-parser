@@ -115,7 +115,7 @@ A message **passes DMARC** when at least one aligned mechanism (DKIM or SPF) pas
 - **Safe by default.** Decompressed payloads are capped (50 MB) to bound decompression-bomb
   attachments, and malformed input throws a typed `DmarcParseError` rather than returning
   garbage.
-- **ESM only**, Node ≥ 18. Three small dependencies (`fast-xml-parser`, `fflate`, `mailparser`).
+- **ESM only**, Node ≥ 20. Three small dependencies (`fast-xml-parser`, `fflate`, `mailparser`).
 - Aggregate (RUA) reports only. Failure (RUF) reports are a different, rarer format.
 
 ## License

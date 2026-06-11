@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { gzipSync, zipSync, strToU8 } from 'fflate';
+import { gzipSync, zipSync, strToU8, strFromU8 } from 'fflate';
 import { parseDmarcXml, extractReportXml, decompressReport, parseReportEmail, DmarcParseError } from './parse.js';
 
 const XML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -70,7 +70,13 @@ describe('parseDmarcXml', () => {
     expect(r.meta.dateBegin.getTime()).toBe(1717200000 * 1000);
     expect(r.records).toHaveLength(2);
     expect(r.records[0]).toMatchObject({ sourceIp: '203.0.113.1', count: 5, dkimResult: 'pass', spfResult: 'pass' });
-    expect(r.records[1]).toMatchObject({ sourceIp: '198.51.100.7', count: 2, dkimResult: 'fail', spfResult: 'pass', headerFrom: 'example.com' });
+    expect(r.records[1]).toMatchObject({
+      sourceIp: '198.51.100.7',
+      count: 2,
+      dkimResult: 'fail',
+      spfResult: 'pass',
+      headerFrom: 'example.com',
+    });
   });
 
   it('handles a single <record> (not wrapped in an array)', () => {
@@ -81,6 +87,51 @@ describe('parseDmarcXml', () => {
 
   it('throws DmarcParseError on malformed/missing-root input', () => {
     expect(() => parseDmarcXml('<not-a-report/>')).toThrow(DmarcParseError);
+  });
+
+  it('returns an empty records array when the report has no <record>', () => {
+    const xml = `<?xml version="1.0"?><feedback>
+      <report_metadata><org_name>google.com</org_name><report_id>RID-0</report_id>
+        <date_range><begin>1717200000</begin><end>1717286400</end></date_range></report_metadata>
+      <policy_published><domain>empty.com</domain><p>none</p></policy_published></feedback>`;
+    const r = parseDmarcXml(xml);
+    expect(r.records).toEqual([]);
+    expect(r.meta.domain).toBe('empty.com');
+  });
+
+  it('coerces non-numeric / negative count and pct to safe values', () => {
+    const xml = `<?xml version="1.0"?><feedback>
+      <report_metadata><org_name>x.com</org_name><report_id>RID-9</report_id>
+        <date_range><begin>1717200000</begin><end>1717286400</end></date_range></report_metadata>
+      <policy_published><domain>d.com</domain><p>none</p><pct>oops</pct></policy_published>
+      <record><row><source_ip>192.0.2.9</source_ip><count>-4</count>
+        <policy_evaluated><dkim>pass</dkim></policy_evaluated></row></record></feedback>`;
+    const r = parseDmarcXml(xml);
+    expect(r.meta.policyPct).toBe(0);
+    expect(r.records[0].count).toBe(0);
+  });
+});
+
+describe('hardening', () => {
+  it('rejects a DOCTYPE/DTD to close the entity-expansion vector', () => {
+    const bomb = `<?xml version="1.0"?>
+      <!DOCTYPE feedback [ <!ENTITY a "AAAA"> <!ENTITY b "&a;&a;&a;&a;"> ]>
+      <feedback><report_metadata><org_name>&b;</org_name><report_id>x</report_id>
+        <date_range><begin>0</begin><end>0</end></date_range></report_metadata></feedback>`;
+    expect(() => parseDmarcXml(bomb)).toThrow(DmarcParseError);
+    expect(() => parseDmarcXml(bomb)).toThrow(/DOCTYPE/i);
+  });
+
+  it('rejects non-string input', () => {
+    // @ts-expect-error exercising a runtime guard for untyped callers
+    expect(() => parseDmarcXml(null)).toThrow(DmarcParseError);
+  });
+
+  it('rejects a gzip whose declared size exceeds the cap before inflating', () => {
+    const gz = gzipSync(strToU8(XML)).slice();
+    // ISIZE is the trailing 4 bytes (little-endian); forge a > 50 MiB uncompressed size.
+    new DataView(gz.buffer).setUint32(gz.length - 4, 60 * 1024 * 1024, true);
+    expect(() => decompressReport('r.xml.gz', gz)).toThrow(/size cap/);
   });
 });
 
@@ -108,12 +159,25 @@ describe('decompressReport', () => {
     const zip = zipSync({ 'note.txt': strToU8('hi') });
     expect(() => decompressReport('r.zip', zip)).toThrow(DmarcParseError);
   });
+
+  it('selects the .xml entry from a zip that also holds other files', () => {
+    const zip = zipSync({ 'readme.txt': strToU8('ignore me'), 'report.xml': strToU8(XML) });
+    expect(decompressReport('r.zip', zip)).toContain('RID-12345');
+  });
+
+  it('round-trips a bare .xml payload back to the same text', () => {
+    expect(strFromU8(strToU8(decompressReport('r.xml', strToU8(XML))))).toContain('<feedback>');
+  });
 });
 
 describe('extractReportXml / parseReportEmail', () => {
   it('decompresses a .xml.gz attachment from a MIME email', async () => {
     const gz = gzipSync(strToU8(XML));
-    const mime = mimeWith(Buffer.from(gz).toString('base64'), 'application/gzip', 'example.com!example.com!1717.xml.gz');
+    const mime = mimeWith(
+      Buffer.from(gz).toString('base64'),
+      'application/gzip',
+      'example.com!example.com!1717.xml.gz',
+    );
     expect(await extractReportXml(mime)).toContain('<org_name>google.com</org_name>');
   });
 
