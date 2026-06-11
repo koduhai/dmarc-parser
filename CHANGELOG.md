@@ -8,6 +8,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Tag-triggered release workflow that publishes to npm with provenance
+  (`npm publish --provenance`), gated on `npm run check`, a tag/version match, and a
+  check that the tarball contains the build output.
 - CLI: accept multiple files, `--csv` and `--ndjson` output, a `--fail-under <n>`
   gate (exit 3 when the combined pass rate is too low), and stdin auto-detection of
   xml/gz/zip/eml. `main()` no longer runs on import, so it is unit-testable.

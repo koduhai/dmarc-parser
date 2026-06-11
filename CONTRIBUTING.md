@@ -54,6 +54,19 @@ DMARC reports vary by provider. If a real report does not parse correctly, the m
 useful thing you can attach is a **minimized, anonymized** sample that reproduces the
 problem (scrub real domains and IPs, keep the structure). Add it as a test case if you can.
 
+## Releasing
+
+Releases are published to npm by CI, not from a laptop. To cut a release (maintainers):
+
+1. Bump the version and update `CHANGELOG.md`, then commit on `main`.
+2. Tag it: `npm version <patch|minor|major>` creates a `vX.Y.Z` tag matching `package.json`.
+3. `git push --follow-tags`.
+
+Pushing the tag triggers `.github/workflows/release.yml`, which runs `npm run check`,
+builds, verifies the tarball contents, and runs `npm publish --provenance` (so the npm
+page links back to the exact commit and build). The workflow fails if the tag does not
+match the version in `package.json`. Publishing requires the `NPM_TOKEN` repository secret.
+
 ## Security
 
 Please do not file security issues in the public tracker. See [SECURITY.md](./SECURITY.md).

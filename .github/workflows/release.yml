@@ -1,0 +1,55 @@
+name: Release
+
+# Publish to npm when a version tag (vX.Y.Z) is pushed. The tag must match the
+# version in package.json. Publishes with provenance, so the npm page links back
+# to this exact commit and workflow run (https://docs.npmjs.com/generating-provenance-statements).
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  contents: read
+  id-token: write # required for npm provenance (Sigstore OIDC)
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          registry-url: 'https://registry.npmjs.org'
+
+      - run: npm ci
+
+      - name: Verify the tag matches package.json
+        run: |
+          pkg="v$(node -p "require('./package.json').version")"
+          if [ "$pkg" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} does not match package.json version ($pkg)"
+            exit 1
+          fi
+
+      - name: Check (lint, format, typecheck, test)
+        run: npm run check
+
+      - run: npm run build
+
+      - name: Verify the published tarball contains the build output
+        run: |
+          files=$(npm pack --dry-run --json \
+            | node -e "const d=JSON.parse(require('fs').readFileSync(0,'utf8')); console.log(d[0].files.map(f=>f.path).join('\n'))")
+          echo "$files"
+          for required in dist/index.js dist/index.d.ts dist/cli.js; do
+            echo "$files" | grep -qx "$required" || { echo "::error::missing $required in package"; exit 1; }
+          done
+
+      - name: Publish to npm with provenance
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
