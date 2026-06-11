@@ -1,6 +1,6 @@
 {
   "name": "@koduhai/dmarc-parser",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Parse DMARC aggregate (RUA) reports — XML, .gz/.zip, or raw MIME email — into typed JSON. Zero-config CLI + tiny library.",
   "keywords": [
     "dmarc",

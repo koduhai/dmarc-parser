@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-06-11
+
+### Fixed
+
+- `count` (and other numeric fields) now truncate to a non-negative integer rather
+  than passing through fractional values, and `policyPct` is clamped to a maximum of
+  100. Malformed numbers continue to coerce to safe defaults.
+
 ## [0.1.0] - 2026-06-10
 
 Initial release.
@@ -34,4 +42,5 @@ Initial release.
   throw a typed `DmarcParseError`, verified by `fast-check` property/fuzz tests.
   Non-numeric or negative `count`/`pct` values coerce to safe defaults.
 
+[0.1.1]: https://github.com/koduhai/dmarc-parser/releases/tag/v0.1.1
 [0.1.0]: https://github.com/koduhai/dmarc-parser/releases/tag/v0.1.0

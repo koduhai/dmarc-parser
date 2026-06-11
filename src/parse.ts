@@ -140,11 +140,12 @@ const str = (v: unknown): string | null => (v == null ? null : String(v));
 const toArray = <T>(v: T | T[] | undefined): T[] => (v == null ? [] : Array.isArray(v) ? v : [v]);
 const asRecord = (v: unknown): Record<string, unknown> => (v ?? {}) as Record<string, unknown>;
 
-// Coerce to a finite, non-negative number; anything else (NaN, "abc", -1, Infinity) becomes the
-// fallback. DMARC counts and percentages are non-negative integers; bad data should not poison them.
+// Coerce to a finite, non-negative integer; anything else (NaN, "abc", -1, Infinity, 3.5) becomes
+// the fallback (fractions are truncated). DMARC counts, timestamps, and percentages are
+// non-negative integers; bad data should not poison them.
 function toCount(v: unknown, fallback = 0): number {
   const n = Number(v);
-  return Number.isFinite(n) && n >= 0 ? n : fallback;
+  return Number.isFinite(n) && n >= 0 ? Math.trunc(n) : fallback;
 }
 
 /**
@@ -182,7 +183,7 @@ export function parseDmarcXml(xml: string): DmarcReport {
     dateEnd: new Date(toCount(dr.end) * 1000),
     policyP: str(pol.p),
     policySp: str(pol.sp),
-    policyPct: pol.pct == null ? null : toCount(pol.pct),
+    policyPct: pol.pct == null ? null : Math.min(100, toCount(pol.pct)),
     policyAdkim: str(pol.adkim),
     policyAspf: str(pol.aspf),
     policyNp: str(pol.np),
