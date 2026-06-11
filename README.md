@@ -1,15 +1,18 @@
 # @koduhai/dmarc-parser
 
 [![CI](https://github.com/koduhai/dmarc-parser/actions/workflows/ci.yml/badge.svg)](https://github.com/koduhai/dmarc-parser/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/@koduhai/dmarc-parser)](https://www.npmjs.com/package/@koduhai/dmarc-parser)
-[![node](https://img.shields.io/node/v/@koduhai/dmarc-parser)](https://nodejs.org)
+[![codecov](https://codecov.io/gh/koduhai/dmarc-parser/branch/main/graph/badge.svg)](https://codecov.io/gh/koduhai/dmarc-parser)
+[![npm version](https://img.shields.io/npm/v/@koduhai/dmarc-parser.svg)](https://www.npmjs.com/package/@koduhai/dmarc-parser)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/koduhai/dmarc-parser/badge)](https://scorecard.dev/viewer/?uri=github.com/koduhai/dmarc-parser)
-[![license: MIT](https://img.shields.io/npm/l/@koduhai/dmarc-parser)](./LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+[![Node](https://img.shields.io/node/v/@koduhai/dmarc-parser.svg)](https://nodejs.org)
 
 Parse **DMARC aggregate (RUA) reports** into typed JSON, from any form mailbox providers
 send them in: raw `.xml`, gzipped `.xml.gz`, zipped `.zip`, or a whole `.eml` MIME email.
 Ships a zero-config CLI and a tiny, dependency-light library. No service, no account, runs
 fully offline.
+
+📚 [API reference](https://koduhai.github.io/dmarc-parser/)
 
 ```
 $ dmarc-parser google.com!example.com!1717.xml.gz

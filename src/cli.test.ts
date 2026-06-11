@@ -102,7 +102,10 @@ describe('cli output formats', () => {
     expect(code).toBe(0);
     const parsed = JSON.parse(stdout());
     expect(Array.isArray(parsed)).toBe(true);
-    expect(parsed.map((r: { meta: { reportId: string } }) => r.meta.reportId)).toEqual(['RID-PASS', 'RID-MIX']);
+    expect(parsed.map((r: { meta: { reportId: string } }) => r.meta.reportId)).toEqual([
+      'RID-PASS',
+      'RID-MIX',
+    ]);
   });
 
   it('--ndjson emits one JSON report per line', async () => {

@@ -78,7 +78,12 @@ describe('parseDmarcXml', () => {
     expect(r.meta.policyPct).toBe(100);
     expect(r.meta.dateBegin.getTime()).toBe(1717200000 * 1000);
     expect(r.records).toHaveLength(2);
-    expect(r.records[0]).toMatchObject({ sourceIp: '203.0.113.1', count: 5, dkimResult: 'pass', spfResult: 'pass' });
+    expect(r.records[0]).toMatchObject({
+      sourceIp: '203.0.113.1',
+      count: 5,
+      dkimResult: 'pass',
+      spfResult: 'pass',
+    });
     expect(r.records[1]).toMatchObject({
       sourceIp: '198.51.100.7',
       count: 2,
@@ -91,7 +96,12 @@ describe('parseDmarcXml', () => {
   it('handles a single <record> (not wrapped in an array)', () => {
     const r = parseDmarcXml(SINGLE_RECORD_XML);
     expect(r.records).toHaveLength(1);
-    expect(r.records[0]).toMatchObject({ sourceIp: '192.0.2.5', count: 3, dkimResult: 'pass', spfResult: 'fail' });
+    expect(r.records[0]).toMatchObject({
+      sourceIp: '192.0.2.5',
+      count: 3,
+      dkimResult: 'pass',
+      spfResult: 'fail',
+    });
   });
 
   it('throws DmarcParseError on malformed/missing-root input', () => {

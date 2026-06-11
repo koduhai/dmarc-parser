@@ -1,19 +1,21 @@
-name: PR title
+name: PR Title
 
+# PRs are squash-merged with the PR title as the commit subject, and release-please
+# derives versions + changelog from those commits. So the PR title must follow
+# Conventional Commits. This check gates that.
 on:
   pull_request:
-    types: [opened, edited, synchronize, reopened]
-    branches: [main]
+    types: [opened, edited, reopened, synchronize]
 
 permissions:
   pull-requests: read
 
 jobs:
   validate:
-    name: Validate PR title (Conventional Commits)
+    name: Validate PR title
     runs-on: ubuntu-latest
     steps:
-      - uses: amannn/action-semantic-pull-request@v6
+      - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6.1.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -29,6 +31,7 @@ jobs:
             ci
             build
           requireScope: false
-          subjectPattern: ^[^A-Z].+$
+          subjectPattern: ^[a-z].+[^.]$
           subjectPatternError: |
-            The PR title subject "{subject}" should start with a lowercase letter.
+            The PR title subject must start lowercase and not end with a period,
+            e.g. "feat: add multi-report aggregation".

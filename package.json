@@ -39,27 +39,28 @@
   },
   "files": [
     "dist",
-    "CHANGELOG.md",
     "README.md",
     "LICENSE"
   ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "engines": {
     "node": ">=20"
-  },
-  "publishConfig": {
-    "access": "public"
   },
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "lint": "eslint .",
-    "lint:package": "publint && attw --pack . --profile esm-only",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "check": "npm run lint && npm run format:check && npm run typecheck && npm run test",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm test",
+    "check:exports": "publint && attw --pack . --profile esm-only",
+    "docs": "typedoc",
     "prepublishOnly": "npm run build",
     "prepare": "husky"
   },
@@ -82,6 +83,7 @@
     "husky": "^9.1.7",
     "prettier": "^3.3.0",
     "publint": "^0.3.21",
+    "typedoc": "^0.28.19",
     "typescript": "^5.6.0",
     "typescript-eslint": "^8.12.0",
     "vitest": "^4.0.0"

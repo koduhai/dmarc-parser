@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { parseDmarcXml, summarize } from './parse.js';
 
-const fixture = (name: string): string => readFileSync(new URL(`./__fixtures__/${name}`, import.meta.url), 'utf8');
+const fixture = (name: string): string =>
+  readFileSync(new URL(`./__fixtures__/${name}`, import.meta.url), 'utf8');
 
 describe('real-world provider fixtures', () => {
   it('google.xml: baseline single-record report with full policy', () => {
@@ -16,7 +17,11 @@ describe('real-world provider fixtures', () => {
 
     expect(r.records).toHaveLength(1);
     expect(r.records[0].dkimAuth).toHaveLength(1);
-    expect(r.records[0].dkimAuth[0]).toMatchObject({ domain: 'example.com', selector: 'google', result: 'pass' });
+    expect(r.records[0].dkimAuth[0]).toMatchObject({
+      domain: 'example.com',
+      selector: 'google',
+      result: 'pass',
+    });
     expect(r.records[0].dkimDomain).toBe('example.com');
 
     const s = summarize(r);
