@@ -3,6 +3,7 @@
 [![CI](https://github.com/koduhai/dmarc-parser/actions/workflows/ci.yml/badge.svg)](https://github.com/koduhai/dmarc-parser/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/@koduhai/dmarc-parser)](https://www.npmjs.com/package/@koduhai/dmarc-parser)
 [![node](https://img.shields.io/node/v/@koduhai/dmarc-parser)](https://nodejs.org)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/koduhai/dmarc-parser/badge)](https://scorecard.dev/viewer/?uri=github.com/koduhai/dmarc-parser)
 [![license: MIT](https://img.shields.io/npm/l/@koduhai/dmarc-parser)](./LICENSE)
 
 Parse **DMARC aggregate (RUA) reports** into typed JSON, from any form mailbox providers
